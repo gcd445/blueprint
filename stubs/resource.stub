@@ -6,6 +6,8 @@ namespace {{ namespace }};
 
 class {{ class }} extends {{ parentClass }}
 {
+    {{ collectionWrap }}
+    
     /**
      * Transform the {{ resource }} into an array.
      */

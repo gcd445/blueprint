@@ -67,9 +67,10 @@ class ResourceGenerator extends StatementGenerator implements Generator
         $stub = str_replace('{{ parentClass }}', $resource->collection() ? 'ResourceCollection' : 'JsonResource', $stub);
         $stub = str_replace('{{ class }}', $resource->name(), $stub);
         $stub = str_replace('{{ parentClass }}', $resource->collection() ? 'ResourceCollection' : 'JsonResource', $stub);
+        $stub = str_replace('{{ collectionWrap }}', $resource->collection() ? 'public static $wrap = null;' : '', $stub); // TODO: make this configurable in config to be "data",plural model name,or null
         $stub = str_replace('{{ resource }}', $resource->collection() ? 'resource collection' : 'resource', $stub);
         $stub = str_replace('{{ body }}', $this->buildData($resource), $stub);
-
+    
         return $stub;
     }
 
@@ -84,9 +85,10 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
         $data = [];
         if ($resource->collection()) {
-            $data[] = 'return [';
-            $data[] = self::INDENT . '\'data\' => $this->collection,';
-            $data[] = '        ];';
+            $data[] = 'return $this->collection->toArray();';
+            $data[] = '//      return [';
+            $data[] = '//' . self::INDENT . '\'' . $resource->reference() . '\' => $this->collection,'; // TODO: make this configurable in config to be "data",plural model name,or null
+            $data[] = '//      ];';
 
             return implode(PHP_EOL, $data);
         }
