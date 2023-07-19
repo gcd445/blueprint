@@ -180,6 +180,13 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
                 $column_name = $reference;
                 $method_name = $is_model_fqn ? Str::afterLast($reference, '\\') : Str::beforeLast($reference, '_id');
 
+                if (Str::contains($reference, '_id')) {
+                    if (in_array(Str::studly($method_name), $references)) {
+                        dump(sprintf("skipping reference %s , matched method name %s", $reference, $method_name));
+                        continue;
+                    }
+                }
+
                 if (Str::contains($reference, ':')) {
                     [$foreign_reference, $column_name] = explode(':', $reference);
 

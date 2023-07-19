@@ -96,23 +96,26 @@ class ResourceGenerator extends StatementGenerator implements Generator
             $data[] = self::INDENT . '\'' . $column . '\' => $this->' . $column . ',';
         }
 
-        foreach ($model->relationships() as $type => $relationship) {
-            $method_name = lcfirst(Str::afterLast(Arr::last($relationship), '\\'));
+        foreach ($model->relationships() as $type => $relationships) {
+            foreach ($relationships as $relationship) {
+                // $method_name = lcfirst(Str::afterLast(Arr::last($relationship), '\\'));
+                $method_name = lcfirst(Str::afterLast($relationship, '\\'));
 
-            $relation_model = $this->tree->modelForContext($method_name);
+                $relation_model = $this->tree->modelForContext($method_name);
 
-            if ($relation_model === null) {
-                continue;
+                if ($relation_model === null) {
+                    continue;
+                }
+
+                if (in_array($type, ['hasMany', 'belongsToMany', 'morphMany'])) {
+                    $relation_resource_name = $relation_model->name() . 'Collection';
+                    $method_name = Str::plural($method_name);
+                } else {
+                    $relation_resource_name = $relation_model->name() . 'Resource';
+                }
+
+                $data[] = self::INDENT . '\'' . $method_name . '\' => ' . $relation_resource_name . '::make($this->whenLoaded(\'' . $method_name . '\')),';
             }
-
-            if (in_array($type, ['hasMany', 'belongsToMany', 'morphMany'])) {
-                $relation_resource_name = $relation_model->name() . 'Collection';
-                $method_name = Str::plural($method_name);
-            } else {
-                $relation_resource_name = $relation_model->name() . 'Resource';
-            }
-
-            $data[] = self::INDENT . '\'' . $method_name . '\' => ' . $relation_resource_name . '::make($this->whenLoaded(\'' . $method_name . '\')),';
         }
 
         $data[] = '        ];';
