@@ -95,7 +95,7 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
         $data[] = 'return [';
         foreach ($this->visibleColumns($model) as $column) {
-            $data[] = self::INDENT . '\'' . $column . '\' => $this->' . $column . ',';
+            $data[] = self::INDENT . '\'' . $column . '\' => '. (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . $column . ')': '$this->' . $column ) . ',';
         }
 
         foreach ($model->relationships() as $type => $relationships) {

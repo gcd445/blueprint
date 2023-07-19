@@ -159,4 +159,14 @@ return [
         'policy' => \Blueprint\Generators\PolicyGenerator::class,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | WhenNotNull
+    |--------------------------------------------------------------------------
+    |
+    | Blueprint will not show NULL values on resources
+    | 
+    */
+    'when_not_null' => true,
+
 ];
