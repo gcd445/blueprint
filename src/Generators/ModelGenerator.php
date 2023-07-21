@@ -182,7 +182,7 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
 
                 if (Str::contains($reference, '_id')) {
                     if (in_array(Str::studly($method_name), $references)) {
-                        dump(sprintf("skipping reference %s , matched method name %s", $reference, $method_name));
+                        // dump(sprintf("skipping reference %s , matched method name %s", $reference, $method_name));
                         continue;
                     }
                 }
