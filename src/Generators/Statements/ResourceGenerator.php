@@ -70,7 +70,7 @@ class ResourceGenerator extends StatementGenerator implements Generator
         $stub = str_replace('{{ collectionWrap }}', $resource->collection() ? 'public static $wrap = null;' : '', $stub); // TODO: make this configurable in config to be "data",plural model name,or null
         $stub = str_replace('{{ resource }}', $resource->collection() ? 'resource collection' : 'resource', $stub);
         $stub = str_replace('{{ body }}', $this->buildData($resource), $stub);
-    
+
         return $stub;
     }
 
@@ -95,7 +95,7 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
         $data[] = 'return [';
         foreach ($this->visibleColumns($model) as $column) {
-            $data[] = self::INDENT . '\'' . $column . '\' => '. (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . $column . ')': '$this->' . $column ) . ',';
+            $data[] = self::INDENT . '\'' . $column . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . $column . ')' : '$this->' . $column) . ',';
         }
 
         foreach ($model->relationships() as $type => $relationships) {
@@ -118,6 +118,13 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
                 $data[] = self::INDENT . '\'' . $method_name . '\' => ' . $relation_resource_name . '::make($this->whenLoaded(\'' . $method_name . '\')),';
             }
+        }
+        // 'created_at' => $this->whenNotNull($this->created_at),
+        
+        $data[] = self::INDENT . '\'' . 'updated_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'updated_at' . ')' : '$this->' . 'updated_at') . ',';
+        $data[] = self::INDENT . '\'' . 'created_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'created_at' . ')' : '$this->' . 'created_at') . ',';        
+        if ($model->usesSoftDeletes()) {
+            $data[] = self::INDENT . '\'' . 'deleted_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'deleted_at' . ')' : '$this->' . 'deleted_at') . ',';
         }
 
         $data[] = '        ];';
