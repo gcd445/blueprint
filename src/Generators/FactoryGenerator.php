@@ -100,10 +100,10 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
                 $reference = $this->fullyQualifyModelReference($class) ?? $model;
 
                 $this->addImport($model, $reference->fullyQualifiedNamespace() . '\\' . $class);
-
                 if ($key === 'id') {
                     $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
-                    $definition .= sprintf('%s::factory()', $class);
+                    // $definition .= sprintf('%s::factory()', $class);
+                    $definition .= sprintf('%s::all()->random()->id', $class);
                     $definition .= ',' . PHP_EOL;
                 } else {
                     $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
