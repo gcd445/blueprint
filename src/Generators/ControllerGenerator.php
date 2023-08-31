@@ -175,26 +175,35 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                     $body .= self::INDENT . '//' . $statement->output($controller->prefix()) . PHP_EOL;
                     $context = Str::singular($statement->model());
                     $method_names = [];
-                    $relation_fields = [];       
-                    $model = $this->tree->modelForContext($context, true);               
+                    $relation_fields = [];
+                    $model = $this->tree->modelForContext($context, true);
                     foreach ($model->relationships() as $type => $relationships) {
                         foreach ($relationships as $relationship) {
                             $method_name = lcfirst(Str::afterLast($relationship, '\\'));
                             $relation_model = $this->tree->modelForContext($method_name);
-                            if ($relation_model === null) { continue; }
-                            if (in_array($type, ['hasMany', 'belongsToMany', 'morphMany'])) { $method_name = Str::plural($method_name); }
-                            
-                            array_push($method_names,$method_name); 
-                            
-                            foreach($relation_model->columns() as $field) {
-                                array_push($relation_fields, "$method_name." . $field->name() ); 
+
+                            if ($relation_model === null) {
+                                if (Str::contains($relationship, ':')) {
+                                    array_push($method_names, Str::camel(Str::beforeLast(explode(':', $relationship)[1], '_id')));
+                                }
+                                continue;
+                            }
+
+                            if (in_array($type, ['hasMany', 'belongsToMany', 'morphMany'])) {
+                                $method_name = Str::plural($method_name);
+                            }
+
+                            array_push($method_names, $method_name);
+
+                            foreach ($relation_model->columns() as $field) {
+                                array_push($relation_fields, "$method_name." . $field->name());
                             }
                         }
                     }
                     $allowed_includes = join("', '", $method_names);
                     $allowed_fields = join("', '", $relation_fields);
                     $has_filters = $model->usesSoftDeletes(); // TODO add more filters
-                    
+
                     // dump([
                     //     '$model->name()' => $model->name(),
                     //     '$model->usesSoftDeletes()' => $model->usesSoftDeletes() 
@@ -208,20 +217,20 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                     //     '$statement->model()' => $statement->model(),
                     //     '$model->relationships' => $model->relationships(),
                     //     '$method_names' => $method_names,
-                        
+
                     // ]);
                     $i = self::INDENT; // self::indent too long
                     $body .= $i . '$' . Str::camel(Str::plural($statement->model())) . ' = QueryBuilder::for(' . $statement->model() . '::class)' . PHP_EOL;
                     $body .= $relation_fields ? $i . $i . '//->allowedFields([\'' . $allowed_fields . '\'])' . PHP_EOL : '';
                     $body .= $method_names ? $i . $i . '->allowedIncludes([\'' . $allowed_includes . '\'])' . PHP_EOL : '';
                     $body .= $has_filters ? $i . $i . '->allowedFilters([' . PHP_EOL : '';
-                    $body .= $model->usesSoftDeletes() ? $i . $i . '    ' . 'AllowedFilter::trashed(),' . PHP_EOL : '' ;
+                    $body .= $model->usesSoftDeletes() ? $i . $i . '    ' . 'AllowedFilter::trashed(),' . PHP_EOL : '';
                     $body .= $has_filters ? $i . $i . '])' . PHP_EOL : '';
                     $body .= $i . $i . '->get();';
 
                     $this->addImport($controller, $this->determineModel($controller, $statement->model()));
                     $this->addImport($controller, "Spatie\QueryBuilder\QueryBuilder");
-                    if ($has_filters) { 
+                    if ($has_filters) {
                         $this->addImport($controller, "Spatie\QueryBuilder\AllowedFilter");
                     }
                 }
