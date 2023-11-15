@@ -103,7 +103,11 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
                 if ($key === 'id') {
                     $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
                     // $definition .= sprintf('%s::factory()', $class);
-                    $definition .= sprintf('%s::all()->random()->id', $class);
+                    if ($column->isNullable()) {
+                        $definition .= sprintf('null', $class);
+                    } else {
+                        $definition .= sprintf('%s::all()->random()->id', $class);
+                    }
                     $definition .= ',' . PHP_EOL;
                 } else {
                     $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
