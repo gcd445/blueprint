@@ -21,7 +21,7 @@ final class CategoryControllerTest extends TestCase
     {
         $categories = Category::factory()->count(3)->create();
 
-        $response = $this->get(route('categories.index'));
+        $response = $this->get(route('category.index'));
 
         $response->assertOk();
         $response->assertJsonStructure([]);
@@ -41,11 +41,11 @@ final class CategoryControllerTest extends TestCase
     #[Test]
     public function store_saves(): void
     {
-        $name = $this->faker->name;
-        $image = $this->faker->word;
-        $active = $this->faker->boolean;
+        $name = $this->faker->name();
+        $image = $this->faker->word();
+        $active = $this->faker->boolean();
 
-        $response = $this->post(route('categories.store'), [
+        $response = $this->post(route('category.store'), [
             'name' => $name,
             'image' => $image,
             'active' => $active,
@@ -69,7 +69,7 @@ final class CategoryControllerTest extends TestCase
     {
         $category = Category::factory()->create();
 
-        $response = $this->get(route('categories.show', $category));
+        $response = $this->get(route('category.show', $category));
 
         $response->assertOk();
         $response->assertJsonStructure([]);
@@ -90,11 +90,11 @@ final class CategoryControllerTest extends TestCase
     public function update_behaves_as_expected(): void
     {
         $category = Category::factory()->create();
-        $name = $this->faker->name;
-        $image = $this->faker->word;
-        $active = $this->faker->boolean;
+        $name = $this->faker->name();
+        $image = $this->faker->word();
+        $active = $this->faker->boolean();
 
-        $response = $this->put(route('categories.update', $category), [
+        $response = $this->put(route('category.update', $category), [
             'name' => $name,
             'image' => $image,
             'active' => $active,
@@ -116,7 +116,7 @@ final class CategoryControllerTest extends TestCase
     {
         $category = Category::factory()->create();
 
-        $response = $this->delete(route('categories.destroy', $category));
+        $response = $this->delete(route('category.destroy', $category));
 
         $response->assertNoContent();
 

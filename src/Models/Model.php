@@ -7,29 +7,31 @@ use Illuminate\Support\Str;
 
 class Model implements BlueprintModel
 {
-    private $name;
+    private string $name;
 
-    private $namespace;
+    private string $namespace;
 
-    private $pivot = false;
+    private bool $pivot = false;
 
-    private $primaryKey = 'id';
+    private string|bool $primaryKey = 'id';
 
-    private $timestamps = 'timestamps';
+    private string|bool $timestamps = 'timestamps';
 
-    private $softDeletes = false;
+    private string|bool $softDeletes = false;
 
-    private $table;
+    private ?string $connection;
 
-    private $columns = [];
+    private string $table;
 
-    private $relationships = [];
+    private array $columns = [];
 
-    private $pivotTables = [];
+    private array $relationships = [];
 
-    private $polymorphicManyToManyTables = [];
+    private array $pivotTables = [];
 
-    private $indexes = [];
+    private array $polymorphicManyToManyTables = [];
+
+    private array $indexes = [];
 
     public function __construct($name)
     {
@@ -42,7 +44,7 @@ class Model implements BlueprintModel
         return Str::studly($this->name);
     }
 
-    public function namespace()
+    public function namespace(): string
     {
         if (empty($this->namespace)) {
             return '';
@@ -51,7 +53,7 @@ class Model implements BlueprintModel
         return $this->namespace;
     }
 
-    public function fullyQualifiedNamespace()
+    public function fullyQualifiedNamespace(): string
     {
         $fqn = config('blueprint.namespace');
 
@@ -66,16 +68,19 @@ class Model implements BlueprintModel
         return $fqn;
     }
 
-    public function fullyQualifiedClassName()
+    public function fullyQualifiedClassName(): string
     {
         return $this->fullyQualifiedNamespace() . '\\' . $this->name;
     }
 
-    public function addColumn(Column $column)
+    public function addColumn(Column $column): void
     {
         $this->columns[$column->name()] = $column;
     }
 
+    /**
+     * @return Column[]
+     */
     public function columns(): array
     {
         return $this->columns;
@@ -86,42 +91,76 @@ class Model implements BlueprintModel
         return $this->relationships;
     }
 
-    public function primaryKey()
+    public function primaryKey(): string
     {
         return $this->primaryKey;
     }
 
-    public function usesPrimaryKey()
+    public function usesPrimaryKey(): bool
     {
         return $this->primaryKey !== false;
     }
 
-    public function disablePrimaryKey()
+    public function usesUlids(): bool
+    {
+        return $this->usesPrimaryKey() && $this->columns[$this->primaryKey]->dataType() === 'ulid';
+    }
+
+    public function usesUuids(): bool
+    {
+        return $this->usesPrimaryKey() && $this->columns[$this->primaryKey]->dataType() === 'uuid';
+    }
+
+    public function idType(): ?string
+    {
+        if (!$this->usesPrimaryKey()) {
+            return null;
+        }
+
+        return $this->columns[$this->primaryKey]->dataType();
+    }
+
+    public function disablePrimaryKey(): void
     {
         $this->primaryKey = false;
     }
 
-    public function isPivot()
+    public function isPivot(): bool
     {
         return $this->pivot;
     }
 
-    public function setPivot()
+    public function setPivot(): void
     {
         $this->pivot = true;
     }
 
-    public function usesCustomTableName()
+    public function usesCustomDatabaseConnection(): bool
+    {
+        return isset($this->connection);
+    }
+
+    public function databaseConnection(): ?string
+    {
+        return $this->connection;
+    }
+
+    public function setDatabaseConnection(string $connection)
+    {
+        $this->connection = $connection;
+    }
+
+    public function usesCustomTableName(): bool
     {
         return isset($this->table);
     }
 
-    public function tableName()
+    public function tableName(): string
     {
         return $this->table ?? Str::snake(Str::pluralStudly($this->name));
     }
 
-    public function setTableName($name)
+    public function setTableName($name): void
     {
         $this->table = $name;
     }
@@ -136,12 +175,12 @@ class Model implements BlueprintModel
         return $this->timestamps !== false;
     }
 
-    public function disableTimestamps()
+    public function disableTimestamps(): void
     {
         $this->timestamps = false;
     }
 
-    public function enableTimestamps(bool $withTimezone = false)
+    public function enableTimestamps(bool $withTimezone = false): void
     {
         $this->timestamps = $withTimezone ? 'timestampsTz' : 'timestamps';
     }
@@ -156,22 +195,22 @@ class Model implements BlueprintModel
         return $this->softDeletes !== false;
     }
 
-    public function enableSoftDeletes(bool $withTimezone = false)
+    public function enableSoftDeletes(bool $withTimezone = false): void
     {
         $this->softDeletes = $withTimezone ? 'softDeletesTz' : 'softDeletes';
     }
 
-    public function hasColumn(string $name)
+    public function hasColumn(string $name): bool
     {
         return isset($this->columns[$name]);
     }
 
-    public function column(string $name)
+    public function column(string $name): Column
     {
         return $this->columns[$name];
     }
 
-    public function addRelationship(string $type, string $reference)
+    public function addRelationship(string $type, string $reference): void
     {
         if (!isset($this->relationships[$type])) {
             $this->relationships[$type] = [];
@@ -187,12 +226,12 @@ class Model implements BlueprintModel
         $this->relationships[$type][] = $reference;
     }
 
-    public function addPolymorphicManyToManyTable(string $reference)
+    public function addPolymorphicManyToManyTable(string $reference): void
     {
         $this->polymorphicManyToManyTables[] = class_basename($reference);
     }
 
-    public function addPivotTable(string $reference)
+    public function addPivotTable(string $reference): void
     {
         if (str_contains($reference, ':&')) {
             return;
@@ -208,7 +247,7 @@ class Model implements BlueprintModel
         return $this->indexes;
     }
 
-    public function addIndex(Index $index)
+    public function addIndex(Index $index): void
     {
         $this->indexes[] = $index;
     }
@@ -218,7 +257,7 @@ class Model implements BlueprintModel
         return $this->pivotTables;
     }
 
-    public function polymorphicManyToManyTables()
+    public function polymorphicManyToManyTables(): array
     {
         return $this->polymorphicManyToManyTables;
     }

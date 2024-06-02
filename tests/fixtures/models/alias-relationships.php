@@ -19,6 +19,7 @@ class Salesman extends Model
      */
     protected $fillable = [
         'name',
+        'belongs_alias_id',
     ];
 
     /**
@@ -28,6 +29,7 @@ class Salesman extends Model
      */
     protected $casts = [
         'id' => 'integer',
+        'belongs_alias_id' => 'integer',
     ];
 
     public function lead(): HasOne
@@ -35,13 +37,13 @@ class Salesman extends Model
         return $this->hasOne(User::class);
     }
 
-    public function methodNames(): HasMany
+    public function manyAliases(): HasMany
     {
-        return $this->hasMany(ClassName::class);
+        return $this->hasMany(ManyModel::class);
     }
 
-    public function methodName(): BelongsTo
+    public function belongsAlias(): BelongsTo
     {
-        return $this->belongsTo(ClassName::class);
+        return $this->belongsTo(BelongsModel::class);
     }
 }

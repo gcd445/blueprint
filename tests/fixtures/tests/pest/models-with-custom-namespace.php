@@ -13,7 +13,7 @@ use function Pest\Laravel\put;
 test('index behaves as expected', function (): void {
     $categories = Category::factory()->count(3)->create();
 
-    $response = get(route('category.index'));
+    $response = get(route('categories.index'));
 
     $response->assertOk();
     $response->assertJsonStructure([]);
@@ -28,11 +28,11 @@ test('store uses form request validation')
     );
 
 test('store saves', function (): void {
-    $name = fake()->name;
-    $image = fake()->word;
-    $active = fake()->boolean;
+    $name = fake()->name();
+    $image = fake()->word();
+    $active = fake()->boolean();
 
-    $response = post(route('category.store'), [
+    $response = post(route('categories.store'), [
         'name' => $name,
         'image' => $image,
         'active' => $active,
@@ -54,7 +54,7 @@ test('store saves', function (): void {
 test('show behaves as expected', function (): void {
     $category = Category::factory()->create();
 
-    $response = get(route('category.show', $category));
+    $response = get(route('categories.show', $category));
 
     $response->assertOk();
     $response->assertJsonStructure([]);
@@ -70,11 +70,11 @@ test('update uses form request validation')
 
 test('update behaves as expected', function (): void {
     $category = Category::factory()->create();
-    $name = fake()->name;
-    $image = fake()->word;
-    $active = fake()->boolean;
+    $name = fake()->name();
+    $image = fake()->word();
+    $active = fake()->boolean();
 
-    $response = put(route('category.update', $category), [
+    $response = put(route('categories.update', $category), [
         'name' => $name,
         'image' => $image,
         'active' => $active,
@@ -94,7 +94,7 @@ test('update behaves as expected', function (): void {
 test('destroy deletes and responds with', function (): void {
     $category = Category::factory()->create();
 
-    $response = delete(route('category.destroy', $category));
+    $response = delete(route('categories.destroy', $category));
 
     $response->assertNoContent();
 

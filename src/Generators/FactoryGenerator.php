@@ -18,7 +18,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
 
     const INDENT = '    ';
 
-    protected $types = ['factories'];
+    protected array $types = ['factories'];
 
     public function output(Tree $tree): array
     {
@@ -39,7 +39,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
         return $this->output;
     }
 
-    protected function getPath(BlueprintModel $blueprintModel)
+    protected function getPath(BlueprintModel $blueprintModel): string
     {
         $path = $blueprintModel->name();
         if ($blueprintModel->namespace()) {
@@ -49,7 +49,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
         return 'database/factories/' . $path . 'Factory.php';
     }
 
-    protected function populateStub(string $stub, Model $model)
+    protected function populateStub(string $stub, Model $model): string
     {
         $stub = str_replace('{{ model }}', $model->name(), $stub);
         $stub = str_replace('//', $this->buildDefinition($model), $stub);
@@ -59,7 +59,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
         return $stub;
     }
 
-    protected function buildDefinition(Model $model)
+    protected function buildDefinition(Model $model): string
     {
         $definition = '';
 
@@ -114,7 +114,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
                     $definition .= sprintf('%s::factory()->create()->%s', $class, $key);
                     $definition .= ',' . PHP_EOL;
                 }
-            } elseif ($column->dataType() === 'id' || ($column->dataType() === 'uuid' && Str::endsWith($column->name(), '_id'))) {
+            } elseif ($column->dataType() === 'id' || (in_array($column->dataType(), ['uuid', 'ulid']) && Str::endsWith($column->name(), '_id'))) {
                 $name = Str::beforeLast($column->name(), '_id');
                 $class = Str::studly($column->attributes()[0] ?? $name);
                 $reference = $this->fullyQualifyModelReference($class) ?? $model;
@@ -160,6 +160,10 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
                 $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
                 $definition .= 'Str::random(10)';
                 $definition .= ',' . PHP_EOL;
+            } elseif ($column->dataType() === 'ulid') {
+                $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
+                $definition .= '(string) Str::ulid()';
+                $definition .= ',' . PHP_EOL;
             } else {
                 $definition .= str_repeat(self::INDENT, 3) . "'{$column->name()}' => ";
 
@@ -171,10 +175,10 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
                 $faker = FakerRegistry::fakerData($column->name()) ?? (FakerRegistry::fakerDataType($type) ?? FakerRegistry::fakerDataType($column->dataType()));
 
                 if ($faker === null) {
-                    $faker = 'word';
+                    $faker = 'word()';
                 }
 
-                if (($faker === 'word') && (!empty($column->attributes()))) {
+                if ($faker === 'word()' && !empty($column->attributes())) {
                     $faker = sprintf("regexify('[A-Za-z0-9]{%s}')", current($column->attributes()));
                 }
 
@@ -190,7 +194,7 @@ class FactoryGenerator extends AbstractClassGenerator implements Generator
         return trim($definition);
     }
 
-    private function fillableColumns(array $columns): array
+    protected function fillableColumns(array $columns): array
     {
         if (config('blueprint.fake_nullables')) {
             return $columns;

@@ -4,9 +4,9 @@ namespace Tests\Feature\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\CertificateType;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Carbon;
 use JMac\Testing\Traits\AdditionalAssertions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -23,7 +23,7 @@ final class CertificateControllerTest extends TestCase
     {
         $certificates = Certificate::factory()->count(3)->create();
 
-        $response = $this->get(route('certificate.index'));
+        $response = $this->get(route('certificates.index'));
 
         $response->assertOk();
         $response->assertJsonStructure([]);
@@ -43,18 +43,18 @@ final class CertificateControllerTest extends TestCase
     #[Test]
     public function store_saves(): void
     {
-        $name = $this->faker->name;
+        $name = $this->faker->name();
         $certificate_type = CertificateType::factory()->create();
-        $reference = $this->faker->word;
-        $document = $this->faker->word;
-        $expiry_date = $this->faker->date();
+        $reference = $this->faker->word();
+        $document = $this->faker->word();
+        $expiry_date = Carbon::parse($this->faker->date());
 
-        $response = $this->post(route('certificate.store'), [
+        $response = $this->post(route('certificates.store'), [
             'name' => $name,
             'certificate_type_id' => $certificate_type->id,
             'reference' => $reference,
             'document' => $document,
-            'expiry_date' => $expiry_date,
+            'expiry_date' => $expiry_date->toDateString(),
         ]);
 
         $certificates = Certificate::query()
@@ -77,7 +77,7 @@ final class CertificateControllerTest extends TestCase
     {
         $certificate = Certificate::factory()->create();
 
-        $response = $this->get(route('certificate.show', $certificate));
+        $response = $this->get(route('certificates.show', $certificate));
 
         $response->assertOk();
         $response->assertJsonStructure([]);
@@ -98,18 +98,18 @@ final class CertificateControllerTest extends TestCase
     public function update_behaves_as_expected(): void
     {
         $certificate = Certificate::factory()->create();
-        $name = $this->faker->name;
+        $name = $this->faker->name();
         $certificate_type = CertificateType::factory()->create();
-        $reference = $this->faker->word;
-        $document = $this->faker->word;
-        $expiry_date = $this->faker->date();
+        $reference = $this->faker->word();
+        $document = $this->faker->word();
+        $expiry_date = Carbon::parse($this->faker->date());
 
-        $response = $this->put(route('certificate.update', $certificate), [
+        $response = $this->put(route('certificates.update', $certificate), [
             'name' => $name,
             'certificate_type_id' => $certificate_type->id,
             'reference' => $reference,
             'document' => $document,
-            'expiry_date' => $expiry_date,
+            'expiry_date' => $expiry_date->toDateString(),
         ]);
 
         $certificate->refresh();
@@ -121,7 +121,7 @@ final class CertificateControllerTest extends TestCase
         $this->assertEquals($certificate_type->id, $certificate->certificate_type_id);
         $this->assertEquals($reference, $certificate->reference);
         $this->assertEquals($document, $certificate->document);
-        $this->assertEquals(Carbon::parse($expiry_date), $certificate->expiry_date);
+        $this->assertEquals($expiry_date, $certificate->expiry_date);
     }
 
 
@@ -130,7 +130,7 @@ final class CertificateControllerTest extends TestCase
     {
         $certificate = Certificate::factory()->create();
 
-        $response = $this->delete(route('certificate.destroy', $certificate));
+        $response = $this->delete(route('certificates.destroy', $certificate));
 
         $response->assertNoContent();
 

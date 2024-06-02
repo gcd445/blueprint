@@ -6,15 +6,9 @@ use Illuminate\Support\Str;
 
 class RedirectStatement
 {
-    /**
-     * @var string
-     */
-    private $route;
+    private string $route;
 
-    /**
-     * @var array
-     */
-    private $data;
+    private array $data;
 
     public function __construct(string $route, array $data = [])
     {
@@ -22,7 +16,7 @@ class RedirectStatement
         $this->data = $data;
     }
 
-    public function route()
+    public function route(): string
     {
         return $this->route;
     }
@@ -32,7 +26,7 @@ class RedirectStatement
         return $this->data;
     }
 
-    public function output()
+    public function output(): string
     {
         $code = "return redirect()->route('" . $this->route() . "'";
 
@@ -41,6 +35,7 @@ class RedirectStatement
         } elseif (Str::contains($this->route(), '.')) {
             [$model, $method] = explode('.', $this->route());
             if (in_array($method, ['edit', 'update', 'show', 'destroy'])) {
+                $model = Str::singular($model);
                 $code .= sprintf(", ['%s' => $%s]", $model, $model);
             }
         }
@@ -50,7 +45,7 @@ class RedirectStatement
         return $code;
     }
 
-    private function buildParameters(array $data)
+    private function buildParameters(array $data): string
     {
         $parameters = array_map(fn ($parameter) => '$' . $parameter, $data);
 

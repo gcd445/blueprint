@@ -10,10 +10,7 @@ use Illuminate\Support\Str;
 
 class ControllerLexer implements Lexer
 {
-    /**
-     * @var StatementLexer
-     */
-    private $statementLexer;
+    private StatementLexer $statementLexer;
 
     public function __construct(StatementLexer $statementLexer)
     {
@@ -108,12 +105,12 @@ class ControllerLexer implements Lexer
             ->toArray();
     }
 
-    private function getControllerModelName(Controller $controller)
+    private function getControllerModelName(Controller $controller): string
     {
         return Str::singular($controller->prefix());
     }
 
-    private function resourceTokens()
+    private function resourceTokens(): array
     {
         return [
             'index' => [
@@ -127,7 +124,7 @@ class ControllerLexer implements Lexer
                 'validate' => '[singular]',
                 'save' => '[singular]',
                 'flash' => '[singular].id',
-                'redirect' => '[singular].index',
+                'redirect' => '[plural].index',
             ],
             'show' => [
                 'render' => '[singular].show with:[singular]',
@@ -139,11 +136,11 @@ class ControllerLexer implements Lexer
                 'validate' => '[singular]',
                 'update' => '[singular]',
                 'flash' => '[singular].id',
-                'redirect' => '[singular].index',
+                'redirect' => '[plural].index',
             ],
             'destroy' => [
                 'delete' => '[singular]',
-                'redirect' => '[singular].index',
+                'redirect' => '[plural].index',
             ],
             'api.index' => [
                 'query' => 'all:[plural]',
@@ -169,7 +166,7 @@ class ControllerLexer implements Lexer
         ];
     }
 
-    private function methodsForResource(string $type)
+    private function methodsForResource(string $type): array
     {
         if ($type === 'api') {
             return ['api.index', 'api.store', 'api.show', 'api.update', 'api.destroy'];
@@ -182,7 +179,7 @@ class ControllerLexer implements Lexer
         return array_map('trim', explode(',', strtolower($type)));
     }
 
-    private function hasOnlyApiResourceMethods(array $methods)
+    private function hasOnlyApiResourceMethods(array $methods): bool
     {
         return collect($methods)->every(fn ($item, $key) => Str::startsWith($item, 'api.'));
     }

@@ -4,7 +4,7 @@ namespace Tests\Feature\Http\Controllers;
 
 use App\Models\Certificate;
 use App\Models\CertificateType;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
 use function Pest\Faker\fake;
 use function Pest\Laravel\assertModelMissing;
 use function Pest\Laravel\delete;
@@ -15,7 +15,7 @@ use function Pest\Laravel\put;
 test('index behaves as expected', function (): void {
     $certificates = Certificate::factory()->count(3)->create();
 
-    $response = get(route('certificate.index'));
+    $response = get(route('certificates.index'));
 
     $response->assertOk();
     $response->assertJsonStructure([]);
@@ -30,18 +30,18 @@ test('store uses form request validation')
     );
 
 test('store saves', function (): void {
-    $name = fake()->name;
+    $name = fake()->name();
     $certificate_type = CertificateType::factory()->create();
-    $reference = fake()->word;
-    $document = fake()->word;
-    $expiry_date = fake()->date();
+    $reference = fake()->word();
+    $document = fake()->word();
+    $expiry_date = Carbon::parse(fake()->date());
 
-    $response = post(route('certificate.store'), [
+    $response = post(route('certificates.store'), [
         'name' => $name,
         'certificate_type_id' => $certificate_type->id,
         'reference' => $reference,
         'document' => $document,
-        'expiry_date' => $expiry_date,
+        'expiry_date' => $expiry_date->toDateString(),
     ]);
 
     $certificates = Certificate::query()
@@ -62,7 +62,7 @@ test('store saves', function (): void {
 test('show behaves as expected', function (): void {
     $certificate = Certificate::factory()->create();
 
-    $response = get(route('certificate.show', $certificate));
+    $response = get(route('certificates.show', $certificate));
 
     $response->assertOk();
     $response->assertJsonStructure([]);
@@ -78,18 +78,18 @@ test('update uses form request validation')
 
 test('update behaves as expected', function (): void {
     $certificate = Certificate::factory()->create();
-    $name = fake()->name;
+    $name = fake()->name();
     $certificate_type = CertificateType::factory()->create();
-    $reference = fake()->word;
-    $document = fake()->word;
-    $expiry_date = fake()->date();
+    $reference = fake()->word();
+    $document = fake()->word();
+    $expiry_date = Carbon::parse(fake()->date());
 
-    $response = put(route('certificate.update', $certificate), [
+    $response = put(route('certificates.update', $certificate), [
         'name' => $name,
         'certificate_type_id' => $certificate_type->id,
         'reference' => $reference,
         'document' => $document,
-        'expiry_date' => $expiry_date,
+        'expiry_date' => $expiry_date->toDateString(),
     ]);
 
     $certificate->refresh();
@@ -101,14 +101,14 @@ test('update behaves as expected', function (): void {
     expect($certificate_type->id)->toEqual($certificate->certificate_type_id);
     expect($reference)->toEqual($certificate->reference);
     expect($document)->toEqual($certificate->document);
-    expect(Carbon::parse($expiry_date))->toEqual($certificate->expiry_date);
+    expect($expiry_date)->toEqual($certificate->expiry_date);
 });
 
 
 test('destroy deletes and responds with', function (): void {
     $certificate = Certificate::factory()->create();
 
-    $response = delete(route('certificate.destroy', $certificate));
+    $response = delete(route('certificates.destroy', $certificate));
 
     $response->assertNoContent();
 

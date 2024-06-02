@@ -24,7 +24,7 @@ final class PaymentControllerTest extends TestCase
     #[Test]
     public function create_displays_view(): void
     {
-        $response = $this->get(route('payment.create'));
+        $response = $this->get(route('payments.create'));
 
         $response->assertOk();
         $response->assertViewIs('payment.create');
@@ -44,14 +44,14 @@ final class PaymentControllerTest extends TestCase
     #[Test]
     public function store_saves_and_redirects(): void
     {
-        $status = $this->faker->word;
+        $status = $this->faker->word();
         $amount = $this->faker->randomFloat(/** decimal_attributes **/);
         $user = User::factory()->create();
 
         Event::fake();
         Mail::fake();
 
-        $response = $this->post(route('payment.store'), [
+        $response = $this->post(route('payments.store'), [
             'status' => $status,
             'amount' => $amount,
             'user_id' => $user->id,
@@ -65,7 +65,7 @@ final class PaymentControllerTest extends TestCase
         $this->assertCount(1, $payments);
         $payment = $payments->first();
 
-        $response->assertRedirect(route('payment.create'));
+        $response->assertRedirect(route('payments.create'));
         $response->assertSessionHas('message', $message);
 
         Event::assertDispatched(NewPayment::class, function ($event) use ($payment) {

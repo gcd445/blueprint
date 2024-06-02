@@ -13,7 +13,7 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
 {
     use HandlesImports;
 
-    protected $types = ['models'];
+    protected array $types = ['models'];
 
     public function output(Tree $tree): array
     {
@@ -32,16 +32,7 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         return $this->output;
     }
 
-    private function pivotColumns(array $columns, array $relationships): array
-    {
-        // TODO: ideally restrict to only "belongsTo" columns used for pivot relationship
-        return collect($columns)
-            ->map(fn ($column) => $column->name())
-            ->reject(fn ($column) => in_array($column, ['created_at', 'updated_at']) || in_array($column, $relationships['belongsTo'] ?? []))
-            ->all();
-    }
-
-    protected function populateStub(string $stub, Model $model)
+    protected function populateStub(string $stub, Model $model): string
     {
         if ($model->isPivot()) {
             $stub = str_replace('class {{ class }} extends Model', 'class {{ class }} extends Pivot', $stub);
@@ -67,7 +58,7 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         return $stub;
     }
 
-    protected function buildClassPhpDoc(Model $model)
+    protected function buildClassPhpDoc(Model $model): string
     {
         if (!config('blueprint.generate_phpdocs')) {
             return '';
@@ -87,6 +78,26 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
                 $phpDoc .= PHP_EOL;
             } elseif ($column->dataType() === 'nullableMorphs') {
                 $phpDoc .= ' * @property int|null $' . $column->name() . '_id';
+                $phpDoc .= PHP_EOL;
+                $phpDoc .= ' * @property string|null $' . $column->name() . '_type';
+                $phpDoc .= PHP_EOL;
+            } elseif ($column->dataType() === 'ulidMorphs') {
+                $phpDoc .= ' * @property string $' . $column->name() . '_id';
+                $phpDoc .= PHP_EOL;
+                $phpDoc .= ' * @property string $' . $column->name() . '_type';
+                $phpDoc .= PHP_EOL;
+            } elseif ($column->dataType() === 'nullableUlidMorphs') {
+                $phpDoc .= ' * @property string|null $' . $column->name() . '_id';
+                $phpDoc .= PHP_EOL;
+                $phpDoc .= ' * @property string|null $' . $column->name() . '_type';
+                $phpDoc .= PHP_EOL;
+            } elseif ($column->dataType() === 'ulidMorphs') {
+                $phpDoc .= ' * @property string $' . $column->name() . '_id';
+                $phpDoc .= PHP_EOL;
+                $phpDoc .= ' * @property string $' . $column->name() . '_type';
+                $phpDoc .= PHP_EOL;
+            } elseif ($column->dataType() === 'nullableUlidMorphs') {
+                $phpDoc .= ' * @property string|null $' . $column->name() . '_id';
                 $phpDoc .= PHP_EOL;
                 $phpDoc .= ' * @property string|null $' . $column->name() . '_type';
                 $phpDoc .= PHP_EOL;
@@ -123,9 +134,56 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         return $phpDoc;
     }
 
-    protected function buildProperties(Model $model)
+    private function phpDataType(string $dataType): string
+    {
+        static $php_data_types = [
+            'id' => 'int',
+            'uuid' => 'string',
+            'bigincrements' => 'int',
+            'biginteger' => 'int',
+            'boolean' => 'bool',
+            'date' => '\Carbon\Carbon',
+            'datetime' => '\Carbon\Carbon',
+            'datetimetz' => '\Carbon\Carbon',
+            'decimal' => 'float',
+            'double' => 'double',
+            'float' => 'float',
+            'increments' => 'int',
+            'integer' => 'int',
+            'mediumincrements' => 'int',
+            'mediuminteger' => 'int',
+            'nullabletimestamps' => '\Carbon\Carbon',
+            'smallincrements' => 'int',
+            'smallinteger' => 'int',
+            'softdeletes' => '\Carbon\Carbon',
+            'softdeletestz' => '\Carbon\Carbon',
+            'time' => '\Carbon\Carbon',
+            'timetz' => '\Carbon\Carbon',
+            'timestamp' => '\Carbon\Carbon',
+            'timestamptz' => '\Carbon\Carbon',
+            'timestamps' => '\Carbon\Carbon',
+            'timestampstz' => '\Carbon\Carbon',
+            'tinyincrements' => 'int',
+            'tinyinteger' => 'int',
+            'unsignedbiginteger' => 'int',
+            'unsigneddecimal' => 'float',
+            'unsignedinteger' => 'int',
+            'unsignedmediuminteger' => 'int',
+            'unsignedsmallinteger' => 'int',
+            'unsignedtinyinteger' => 'int',
+            'year' => 'int',
+        ];
+
+        return $php_data_types[strtolower($dataType)] ?? 'string';
+    }
+
+    protected function buildProperties(Model $model): string
     {
         $properties = [];
+
+        if ($model->usesCustomDatabaseConnection()) {
+            $properties[] = str_replace('{{ name }}', $model->databaseConnection(), $this->filesystem->stub('model.connection.stub'));
+        }
 
         if ($model->usesCustomTableName() || $model->isPivot()) {
             $properties[] = str_replace('{{ name }}', $model->tableName(), $this->filesystem->stub('model.table.stub'));
@@ -163,7 +221,94 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         return trim(implode(PHP_EOL, array_filter($properties, fn ($property) => !empty(trim($property)))));
     }
 
-    protected function buildRelationships(Model $model)
+    protected function fillableColumns(array $columns): array
+    {
+        return array_diff(
+            array_keys($columns),
+            [
+                'id',
+                'deleted_at',
+                'created_at',
+                'updated_at',
+                'remember_token',
+                'softdeletes',
+                'softdeletestz',
+            ]
+        );
+    }
+
+    private function pretty_print_array(array $data, bool $assoc = true): string
+    {
+        $output = var_export($data, true);
+        $output = preg_replace('/^\s+/m', '        ', $output);
+        $output = preg_replace(['/^array\s\(/', '/\)$/'], ['[', '    ]'], $output);
+
+        if (!$assoc) {
+            $output = preg_replace('/^(\s+)[^=]+=>\s+/m', '$1', $output);
+        }
+
+        return trim(str_replace("\n", PHP_EOL, $output));
+    }
+
+    protected function hiddenColumns(array $columns): array
+    {
+        return array_intersect(
+            array_keys($columns),
+            [
+                'password',
+                'remember_token',
+            ]
+        );
+    }
+
+    protected function castableColumns(array $columns): array
+    {
+        return array_filter(
+            array_map(
+                fn (Column $column) => $this->castForColumn($column),
+                $columns
+            )
+        );
+    }
+
+    private function castForColumn(Column $column): ?string
+    {
+        if ($column->dataType() === 'date') {
+            return 'date';
+        }
+
+        if (stripos($column->dataType(), 'datetime') !== false) {
+            return 'datetime';
+        }
+
+        if (stripos($column->dataType(), 'timestamp') !== false) {
+            return 'timestamp';
+        }
+
+        if (stripos($column->dataType(), 'integer') || in_array($column->dataType(), ['id', 'foreign'])) {
+            return 'integer';
+        }
+
+        if (in_array($column->dataType(), ['boolean', 'double', 'float'])) {
+            return strtolower($column->dataType());
+        }
+
+        if (in_array($column->dataType(), ['decimal', 'unsignedDecimal'])) {
+            if ($column->attributes()) {
+                return 'decimal:' . $column->attributes()[1];
+            }
+
+            return 'decimal';
+        }
+
+        if ($column->dataType() === 'json') {
+            return 'array';
+        }
+
+        return null;
+    }
+
+    protected function buildRelationships(Model $model): string
     {
         $methods = '';
         $template = $this->filesystem->stub('model.method.stub');
@@ -276,160 +421,7 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         return $methods;
     }
 
-    protected function addTraits(Model $model, $stub)
-    {
-        if (!$model->usesSoftDeletes()) {
-            return $stub;
-        }
-
-        $this->addImport($model, 'Illuminate\\Database\\Eloquent\\SoftDeletes');
-        $stub = Str::replaceFirst('use HasFactory', 'use HasFactory, SoftDeletes', $stub);
-
-        return $stub;
-    }
-
-    private function fillableColumns(array $columns)
-    {
-        return array_diff(
-            array_keys($columns),
-            [
-                'id',
-                'deleted_at',
-                'created_at',
-                'updated_at',
-                'remember_token',
-                'softdeletes',
-                'softdeletestz',
-            ]
-        );
-    }
-
-    private function hiddenColumns(array $columns)
-    {
-        return array_intersect(
-            array_keys($columns),
-            [
-                'password',
-                'remember_token',
-            ]
-        );
-    }
-
-    private function castableColumns(array $columns)
-    {
-        return array_filter(
-            array_map(
-                fn (Column $column) => $this->castForColumn($column),
-                $columns
-            )
-        );
-    }
-
-    private function dateColumns(array $columns)
-    {
-        return array_map(
-            fn (Column $column) => $column->name(),
-            array_filter(
-                $columns,
-                fn (Column $column) => $column->dataType() === 'date'
-                    || stripos($column->dataType(), 'datetime') !== false
-                    || stripos($column->dataType(), 'timestamp') !== false
-            )
-        );
-    }
-
-    private function castForColumn(Column $column)
-    {
-        if ($column->dataType() === 'date') {
-            return 'date';
-        }
-
-        if (stripos($column->dataType(), 'datetime') !== false) {
-            return 'datetime';
-        }
-
-        if (stripos($column->dataType(), 'timestamp') !== false) {
-            return 'timestamp';
-        }
-
-        if (stripos($column->dataType(), 'integer') || $column->dataType() === 'id') {
-            return 'integer';
-        }
-
-        if (in_array($column->dataType(), ['boolean', 'double', 'float'])) {
-            return strtolower($column->dataType());
-        }
-
-        if (in_array($column->dataType(), ['decimal', 'unsignedDecimal'])) {
-            if ($column->attributes()) {
-                return 'decimal:' . $column->attributes()[1];
-            }
-
-            return 'decimal';
-        }
-
-        if ($column->dataType() === 'json') {
-            return 'array';
-        }
-    }
-
-    private function pretty_print_array(array $data, $assoc = true)
-    {
-        $output = var_export($data, true);
-        $output = preg_replace('/^\s+/m', '        ', $output);
-        $output = preg_replace(['/^array\s\(/', '/\)$/'], ['[', '    ]'], $output);
-
-        if (!$assoc) {
-            $output = preg_replace('/^(\s+)[^=]+=>\s+/m', '$1', $output);
-        }
-
-        return trim(str_replace("\n", PHP_EOL, $output));
-    }
-
-    private function phpDataType(string $dataType)
-    {
-        static $php_data_types = [
-            'id' => 'int',
-            'uuid' => 'string',
-            'bigincrements' => 'int',
-            'biginteger' => 'int',
-            'boolean' => 'bool',
-            'date' => '\Carbon\Carbon',
-            'datetime' => '\Carbon\Carbon',
-            'datetimetz' => '\Carbon\Carbon',
-            'decimal' => 'float',
-            'double' => 'double',
-            'float' => 'float',
-            'increments' => 'int',
-            'integer' => 'int',
-            'mediumincrements' => 'int',
-            'mediuminteger' => 'int',
-            'nullabletimestamps' => '\Carbon\Carbon',
-            'smallincrements' => 'int',
-            'smallinteger' => 'int',
-            'softdeletes' => '\Carbon\Carbon',
-            'softdeletestz' => '\Carbon\Carbon',
-            'time' => '\Carbon\Carbon',
-            'timetz' => '\Carbon\Carbon',
-            'timestamp' => '\Carbon\Carbon',
-            'timestamptz' => '\Carbon\Carbon',
-            'timestamps' => '\Carbon\Carbon',
-            'timestampstz' => '\Carbon\Carbon',
-            'tinyincrements' => 'int',
-            'tinyinteger' => 'int',
-            'unsignedbiginteger' => 'int',
-            'unsigneddecimal' => 'float',
-            'unsignedinteger' => 'int',
-            'unsignedmediuminteger' => 'int',
-            'unsignedsmallinteger' => 'int',
-            'unsignedtinyinteger' => 'int',
-            'year' => 'int',
-        ];
-
-        return $php_data_types[strtolower($dataType)] ?? 'string';
-    }
-
-    private function fullyQualifyModelReference(string $model_name)
+    private function fullyQualifyModelReference(string $model_name): ?string
     {
         // TODO: get model_name from tree.
         // If not found, assume parallel namespace as controller.
@@ -445,5 +437,51 @@ class ModelGenerator extends AbstractClassGenerator implements Generator
         }
 
         return null;
+    }
+
+    protected function pivotColumns(array $columns, array $relationships): array
+    {
+        // TODO: ideally restrict to only "belongsTo" columns used for pivot relationship
+        return collect($columns)
+            ->map(fn ($column) => $column->name())
+            ->reject(fn ($column) => in_array($column, ['created_at', 'updated_at']) || in_array($column, $relationships['belongsTo'] ?? []))
+            ->all();
+    }
+
+    protected function addTraits(Model $model, $stub): string
+    {
+        $traits = ['HasFactory'];
+
+        if ($model->usesSoftDeletes()) {
+            $this->addImport($model, 'Illuminate\\Database\\Eloquent\\SoftDeletes');
+            $traits[] = 'SoftDeletes';
+        }
+
+        if ($model->usesUlids()) {
+            $this->addImport($model, 'Illuminate\\Database\\Eloquent\\Concerns\\HasUlids');
+            $traits[] = 'HasUlids';
+        }
+
+        if ($model->usesUuids()) {
+            $this->addImport($model, 'Illuminate\\Database\\Eloquent\\Concerns\\HasUuids');
+            $traits[] = 'HasUuids';
+        }
+
+        sort($traits);
+
+        return Str::replaceFirst('use HasFactory', 'use ' . implode(', ', $traits), $stub);
+    }
+
+    protected function dateColumns(array $columns)
+    {
+        return array_map(
+            fn (Column $column) => $column->name(),
+            array_filter(
+                $columns,
+                fn (Column $column) => $column->dataType() === 'date'
+                    || stripos($column->dataType(), 'datetime') !== false
+                    || stripos($column->dataType(), 'timestamp') !== false
+            )
+        );
     }
 }

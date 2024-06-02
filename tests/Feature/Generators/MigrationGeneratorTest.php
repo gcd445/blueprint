@@ -6,6 +6,7 @@ use Blueprint\Blueprint;
 use Blueprint\Generators\MigrationGenerator;
 use Blueprint\Tree;
 use Carbon\Carbon;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Finder\SplFileInfo;
 use Tests\TestCase;
@@ -46,23 +47,30 @@ final class MigrationGeneratorTest extends TestCase
     }
 
     #[Test]
-    public function output_writes_migration_for_foreign_shorthand(): void
+    #[DataProvider('modelTreeDataProvider')]
+    public function output_generates_migrations($definition, $path, $model): void
     {
         $this->filesystem->expects('stub')
             ->with('migration.stub')
             ->andReturn($this->stub('migration.stub'));
 
+        if ($definition === 'drafts/model-with-meta.yaml') {
+            $this->filesystem->expects('stub')
+                ->with('model.connection.stub')
+                ->andReturn($this->stub('model.connection.stub'));
+        }
+
         $now = Carbon::now();
         Carbon::setTestNow($now);
 
-        $timestamp_path = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
+        $timestamp_path = str_replace('timestamp', $now->format('Y_m_d_His'), $path);
 
         $this->filesystem->expects('exists')->andReturn(false);
 
         $this->filesystem->expects('put')
-            ->with($timestamp_path, $this->fixture('migrations/foreign-key-shorthand.php'));
+            ->with($timestamp_path, $this->fixture($model));
 
-        $tokens = $this->blueprint->parse($this->fixture('drafts/foreign-key-shorthand.yaml'));
+        $tokens = $this->blueprint->parse($this->fixture($definition));
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['created' => [$timestamp_path]], $this->subject->output($tree));
@@ -149,6 +157,35 @@ final class MigrationGeneratorTest extends TestCase
     }
 
     #[Test]
+    public function using_ulids_output_also_creates_pivot_table_migration(): void
+    {
+        $this->filesystem->expects('stub')
+            ->with('migration.stub')
+            ->andReturn($this->stub('migration.stub'));
+
+        $now = Carbon::now();
+        Carbon::setTestNow($now);
+
+        $journey_model_migration = str_replace('timestamp', $now->copy()->subSeconds(2)->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
+        $diary_model_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_diaries_table.php');
+        $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->filesystem->expects('exists')->times(3)->andReturn(false);
+
+        $this->filesystem->expects('put')
+            ->with($journey_model_migration, $this->fixture('migrations/belongs-to-many-using-ulids-journey-model.php'));
+        $this->filesystem->expects('put')
+            ->with($diary_model_migration, $this->fixture('migrations/belongs-to-many-using-ulids-diary-model.php'));
+        $this->filesystem->expects('put')
+            ->with($pivot_migration, $this->fixture('migrations/belongs-to-many-pivot-using-ulids.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/belongs-to-many-using-ulids.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['created' => [$journey_model_migration, $diary_model_migration, $pivot_migration]], $this->subject->output($tree));
+    }
+
+    #[Test]
     public function output_also_creates_pivot_table_migration(): void
     {
         $this->filesystem->expects('stub')
@@ -206,6 +243,70 @@ final class MigrationGeneratorTest extends TestCase
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['updated' => [$model_migration, $pivot_migration]], $this->subject->output($tree, true));
+    }
+
+    #[Test]
+    public function output_also_creates_constraints_for_pivot_table_migration_for_ulids(): void
+    {
+        $this->app->config->set('blueprint.use_constraints', true);
+
+        $this->filesystem->expects('stub')
+            ->with('migration.stub')
+            ->andReturn($this->stub('migration.stub'));
+
+        $now = Carbon::now();
+        Carbon::setTestNow($now);
+
+        $journey_model_migration = str_replace('timestamp', $now->copy()->subSeconds(2)->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
+        $diary_model_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_diaries_table.php');
+        $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->filesystem->expects('exists')->times(3)->andReturn(false);
+
+        $this->filesystem->expects('put')
+            ->with($journey_model_migration, $this->fixture('migrations/belongs-to-many-key-constraints-using-ulid-columns-journey-model.php'));
+        $this->filesystem->expects('put')
+            ->with($diary_model_migration, $this->fixture('migrations/belongs-to-many-key-constraints-using-ulid-columns-diary-model.php'));
+
+        $this->filesystem->expects('put')
+            ->with($pivot_migration, $this->fixture('migrations/belongs-to-many-pivot-key-constraints-using-ulid-columns.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/belongs-to-many-using-ulids.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['created' => [$journey_model_migration, $diary_model_migration, $pivot_migration]], $this->subject->output($tree));
+    }
+
+    #[Test]
+    public function output_also_creates_constraints_for_pivot_table_migration_for_uuids(): void
+    {
+        $this->app->config->set('blueprint.use_constraints', true);
+
+        $this->filesystem->expects('stub')
+            ->with('migration.stub')
+            ->andReturn($this->stub('migration.stub'));
+
+        $now = Carbon::now();
+        Carbon::setTestNow($now);
+
+        $journey_model_migration = str_replace('timestamp', $now->copy()->subSeconds(2)->format('Y_m_d_His'), 'database/migrations/timestamp_create_journeys_table.php');
+        $diary_model_migration = str_replace('timestamp', $now->copy()->subSecond()->format('Y_m_d_His'), 'database/migrations/timestamp_create_diaries_table.php');
+        $pivot_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_diary_journey_table.php');
+
+        $this->filesystem->expects('exists')->times(3)->andReturn(false);
+
+        $this->filesystem->expects('put')
+            ->with($journey_model_migration, $this->fixture('migrations/belongs-to-many-key-constraints-using-uuid-columns-journey-model.php'));
+        $this->filesystem->expects('put')
+            ->with($diary_model_migration, $this->fixture('migrations/belongs-to-many-key-constraints-using-uuid-columns-diary-model.php'));
+
+        $this->filesystem->expects('put')
+            ->with($pivot_migration, $this->fixture('migrations/belongs-to-many-pivot-key-constraints-using-uuid-columns.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/belongs-to-many-using-uuids.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['created' => [$journey_model_migration, $diary_model_migration, $pivot_migration]], $this->subject->output($tree));
     }
 
     #[Test]
@@ -372,55 +473,6 @@ final class MigrationGeneratorTest extends TestCase
     }
 
     #[Test]
-    public function output_creates_nullable_foreign_key_without_column_type_beeing_id(): void
-    {
-        $this->filesystem->expects('stub')
-            ->with('migration.stub')
-            ->andReturn($this->stub('migration.stub'));
-
-        $now = Carbon::now();
-        Carbon::setTestNow($now);
-
-        $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
-
-        $this->filesystem->expects('exists')->with($model_migration)->andReturn(false);
-
-        $this->files
-            ->expects('put')
-            ->with($model_migration, $this->fixture('migrations/nullable-columns-with-foreign.php'));
-
-        $tokens = $this->blueprint->parse($this->fixture('drafts/nullable-columns-with-foreign.yaml'));
-
-        $tree = $this->blueprint->analyze($tokens);
-
-        $this->assertEquals(['created' => [$model_migration]], $this->subject->output($tree));
-    }
-
-    #[Test]
-    public function output_creates_foreign_keys_with_on_delete(): void
-    {
-        $this->filesystem->expects('stub')
-            ->with('migration.stub')
-            ->andReturn($this->stub('migration.stub'));
-
-        $now = Carbon::now();
-        Carbon::setTestNow($now);
-
-        $model_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_comments_table.php');
-
-        $this->filesystem->expects('exists')->andReturn(false);
-
-        $this->files
-            ->expects('put')
-            ->with($model_migration, $this->fixture('migrations/foreign-key-on-delete.php'));
-
-        $tokens = $this->blueprint->parse($this->fixture('drafts/foreign-key-on-delete.yaml'));
-        $tree = $this->blueprint->analyze($tokens);
-
-        $this->assertEquals(['created' => [$model_migration]], $this->subject->output($tree));
-    }
-
-    #[Test]
     public function output_works_with_polymorphic_relationships(): void
     {
         $this->filesystem->expects('stub')
@@ -447,29 +499,6 @@ final class MigrationGeneratorTest extends TestCase
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['created' => [$post_migration, $user_migration, $image_migration]], $this->subject->output($tree));
-    }
-
-    #[Test]
-    public function output_works_with_multiple_morphto_statements_in_polymorphic_relationship(): void
-    {
-        $this->filesystem->expects('stub')
-            ->with('migration.stub')
-            ->andReturn($this->stub('migration.stub'));
-
-        $now = Carbon::now();
-        Carbon::setTestNow($now);
-
-        $image_migration = str_replace('timestamp', $now->format('Y_m_d_His'), 'database/migrations/timestamp_create_images_table.php');
-
-        $this->filesystem->expects('exists')->andReturn(false);
-
-        $this->filesystem->expects('put')
-            ->with($image_migration, $this->fixture('migrations/polymorphic_relationships_images_table_multiple_morphto.php'));
-
-        $tokens = $this->blueprint->parse($this->fixture('drafts/polymorphic-relationships-multiple-morphto.yaml'));
-        $tree = $this->blueprint->analyze($tokens);
-
-        $this->assertEquals(['created' => [$image_migration]], $this->subject->output($tree));
     }
 
     #[Test]
@@ -581,32 +610,7 @@ final class MigrationGeneratorTest extends TestCase
         $this->assertEquals(['created' => [$user_migration, $team_migration, $pivot_migration]], $this->subject->output($tree));
     }
 
-    #[Test]
-    public function output_omits_length_for_integers(): void
-    {
-        $this->filesystem->expects('stub')
-            ->with('migration.stub')
-            ->andReturn($this->stub('migration.stub'));
-
-        $now = Carbon::now();
-        Carbon::setTestNow($now);
-
-        $timestamp_path = 'database/migrations/' . $now->format('Y_m_d_His') . '_create_omits_table.php';
-
-        $this->filesystem->expects('exists')
-            ->with($timestamp_path)
-            ->andReturn(false);
-
-        $this->filesystem->expects('put')
-            ->with($timestamp_path, $this->fixture('migrations/omits-length-for-integers.php'));
-
-        $tokens = $this->blueprint->parse($this->fixture('drafts/omits-length-for-integers.yaml'));
-        $tree = $this->blueprint->analyze($tokens);
-
-        $this->assertEquals(['created' => [$timestamp_path]], $this->subject->output($tree));
-    }
-
-    public function modelTreeDataProvider()
+    public static function modelTreeDataProvider()
     {
         return [
             ['drafts/readme-example.yaml', 'database/migrations/timestamp_create_posts_table.php', 'migrations/readme-example.php'],
@@ -616,12 +620,15 @@ final class MigrationGeneratorTest extends TestCase
             ['drafts/soft-deletes.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/soft-deletes.php'],
             ['drafts/with-timezones.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/with-timezones.php'],
             ['drafts/relationships.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/relationships.php'],
-            ['drafts/indexes.yaml', 'database/migrations/timestamp_create_posts_table.php', 'migrations/indexes.php'],
+            ['drafts/models-with-custom-namespace.yaml', 'database/migrations/timestamp_create_categories_table.php', 'migrations/models-with-custom-namespace.php'],
             ['drafts/custom-indexes.yaml', 'database/migrations/timestamp_create_cooltables_table.php', 'migrations/custom-indexes.php'],
             ['drafts/unconventional.yaml', 'database/migrations/timestamp_create_teams_table.php', 'migrations/unconventional.php'],
             ['drafts/optimize.yaml', 'database/migrations/timestamp_create_optimizes_table.php', 'migrations/optimize.php'],
             ['drafts/model-key-constraints.yaml', 'database/migrations/timestamp_create_orders_table.php', 'migrations/model-key-constraints.php'],
             ['drafts/disable-auto-columns.yaml', 'database/migrations/timestamp_create_states_table.php', 'migrations/disable-auto-columns.php'],
+            ['drafts/ulid-shorthand.yaml', 'database/migrations/timestamp_create_people_table.php', 'migrations/ulid-shorthand.php'],
+            ['drafts/ulid-shorthand-invalid-relationship.yaml', 'database/migrations/timestamp_create_age_cohorts_table.php', 'migrations/ulid-shorthand-invalid-relationship.php'],
+            ['drafts/ulid-without-relationship.yaml', 'database/migrations/timestamp_create_vats_table.php', 'migrations/ulid-without-relationship.php'],
             ['drafts/uuid-shorthand.yaml', 'database/migrations/timestamp_create_people_table.php', 'migrations/uuid-shorthand.php'],
             ['drafts/uuid-shorthand-invalid-relationship.yaml', 'database/migrations/timestamp_create_age_cohorts_table.php', 'migrations/uuid-shorthand-invalid-relationship.php'],
             ['drafts/uuid-without-relationship.yaml', 'database/migrations/timestamp_create_vats_table.php', 'migrations/uuid-without-relationship.php'],
@@ -633,6 +640,12 @@ final class MigrationGeneratorTest extends TestCase
             ['drafts/foreign-with-class.yaml', 'database/migrations/timestamp_create_events_table.php', 'migrations/foreign-with-class.php'],
             ['drafts/full-text.yaml', 'database/migrations/timestamp_create_posts_table.php', 'migrations/full-text.php'],
             ['drafts/model-with-meta.yaml', 'database/migrations/timestamp_create_post_table.php', 'migrations/model-with-meta.php'],
+            ['drafts/infer-belongsto.yaml', 'database/migrations/timestamp_create_conferences_table.php', 'migrations/infer-belongsto.php'],
+            ['drafts/foreign-key-shorthand.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/foreign-key-shorthand.php'],
+            ['drafts/polymorphic-relationships-multiple-morphto.yaml', 'database/migrations/timestamp_create_images_table.php', 'migrations/polymorphic_relationships_images_table_multiple_morphto.php'],
+            ['drafts/foreign-key-on-delete.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/foreign-key-on-delete.php'],
+            ['drafts/nullable-columns-with-foreign.yaml', 'database/migrations/timestamp_create_comments_table.php', 'migrations/nullable-columns-with-foreign.php'],
+            ['drafts/omits-length-for-integers.yaml', 'database/migrations/timestamp_create_omits_table.php', 'migrations/omits-length-for-integers.php'],
         ];
     }
 }
