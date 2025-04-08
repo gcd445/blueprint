@@ -21,9 +21,8 @@ class Controller implements BlueprintModel
 
     private bool $apiResource = false;
 
-    /**
-     * Controller constructor.
-     */
+    private ?string $parent = null;
+
     public function __construct(string $name)
     {
         $this->name = class_basename($name);
@@ -105,5 +104,15 @@ class Controller implements BlueprintModel
     public function isApiResource(): bool
     {
         return $this->apiResource;
+    }
+
+    public function setParent(string $parent): void
+    {
+        $this->parent = Str::studly(Str::singular($parent));
+    }
+
+    public function parent(): ?string
+    {
+        return $this->parent;
     }
 }

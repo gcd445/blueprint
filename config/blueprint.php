@@ -30,6 +30,8 @@ return [
 
     'controllers_namespace' => 'Http\\Controllers',
 
+    'components_namespace' => 'Livewire',
+
     'policy_namespace' => 'Policies',
 
     /*
@@ -130,6 +132,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Generate Resource Collection Classes
+    |--------------------------------------------------------------------------
+    |
+    | By default, Blueprint generates resource collection classes to manage resource
+    | collections (e.g. `PostResourceCollection`). You may disable this option to
+    | generate only resource classes and use their `collection` method instead.
+    |
+    */
+    'generate_resource_collection_classes' => true,
+
+    /*
+    |--------------------------------------------------------------------------
     | Generators
     |--------------------------------------------------------------------------
     |
@@ -156,6 +170,7 @@ return [
         'notification' => \Blueprint\Generators\Statements\NotificationGenerator::class,
         'resource' => \Blueprint\Generators\Statements\ResourceGenerator::class,
         'view' => \Blueprint\Generators\Statements\ViewGenerator::class,
+        'inertia_page' => \Blueprint\Generators\Statements\InertiaPageGenerator::class,
         'policy' => \Blueprint\Generators\PolicyGenerator::class,
     ],
 

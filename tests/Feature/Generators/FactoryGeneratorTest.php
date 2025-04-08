@@ -28,8 +28,8 @@ final class FactoryGeneratorTest extends TestCase
         $this->factoryStub = 'factory.stub';
         $this->subject = new FactoryGenerator($this->files);
 
-        $this->blueprint = new Blueprint();
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer());
+        $this->blueprint = new Blueprint;
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer);
         $this->blueprint->registerGenerator($this->subject);
     }
 
@@ -164,6 +164,26 @@ final class FactoryGeneratorTest extends TestCase
         $tree = $this->blueprint->analyze($tokens);
 
         $this->assertEquals(['created' => ['database/factories/Admin/UserFactory.php']], $this->subject->output($tree));
+    }
+
+    #[Test]
+    public function output_factory_uses_enum(): void
+    {
+        $this->filesystem->expects('stub')
+            ->with($this->factoryStub)
+            ->andReturn($this->stub($this->factoryStub));
+
+        $this->filesystem->expects('exists')
+            ->with('database/factories')
+            ->andReturnTrue();
+
+        $this->filesystem->expects('put')
+            ->with('database/factories/PostFactory.php', $this->fixture('factories/with-enum.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture('drafts/with-enum.yaml'));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['created' => ['database/factories/PostFactory.php']], $this->subject->output($tree));
     }
 
     public static function modelTreeDataProvider(): array

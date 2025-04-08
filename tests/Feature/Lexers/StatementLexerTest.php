@@ -6,6 +6,7 @@ use Blueprint\Lexers\StatementLexer;
 use Blueprint\Models\Statements\DispatchStatement;
 use Blueprint\Models\Statements\EloquentStatement;
 use Blueprint\Models\Statements\FireStatement;
+use Blueprint\Models\Statements\InertiaStatement;
 use Blueprint\Models\Statements\QueryStatement;
 use Blueprint\Models\Statements\RedirectStatement;
 use Blueprint\Models\Statements\RenderStatement;
@@ -16,7 +17,7 @@ use Blueprint\Models\Statements\SessionStatement;
 use Blueprint\Models\Statements\ValidateStatement;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 /**
  * @see StatementLexer
@@ -32,7 +33,7 @@ final class StatementLexerTest extends TestCase
     {
         parent::setUp();
 
-        $this->subject = new StatementLexer();
+        $this->subject = new StatementLexer;
     }
 
     #[Test]
@@ -70,6 +71,22 @@ final class StatementLexerTest extends TestCase
         $this->assertInstanceOf(RenderStatement::class, $actual[0]);
 
         $this->assertEquals('post.index', $actual[0]->view());
+        $this->assertEquals(['foo', 'bar', 'baz'], $actual[0]->data());
+    }
+
+    #[Test]
+    public function it_returns_an_inertia_statement_with_data(): void
+    {
+        $tokens = [
+            'inertia' => 'Post/Index with:foo,bar,baz',
+        ];
+
+        $actual = $this->subject->analyze($tokens);
+
+        $this->assertCount(1, $actual);
+        $this->assertInstanceOf(InertiaStatement::class, $actual[0]);
+
+        $this->assertEquals('Post/Index', $actual[0]->view());
         $this->assertEquals(['foo', 'bar', 'baz'], $actual[0]->data());
     }
 
@@ -660,6 +677,26 @@ final class StatementLexerTest extends TestCase
         $this->assertEquals('users', $actual[0]->reference());
         $this->assertTrue($actual[0]->collection());
         $this->assertTrue($actual[0]->paginate());
+    }
+
+    #[Test]
+    public function it_returns_a_resource_collection_statement_without_generating_a_resource_collection_class(): void
+    {
+        config(['blueprint.generate_resource_collection_classes' => false]);
+
+        $tokens = [
+            'resource' => 'collection:users',
+        ];
+
+        $actual = $this->subject->analyze($tokens);
+
+        $this->assertCount(1, $actual);
+        $this->assertInstanceOf(ResourceStatement::class, $actual[0]);
+
+        $this->assertEquals('UserResource', $actual[0]->name());
+        $this->assertEquals('users', $actual[0]->reference());
+        $this->assertTrue($actual[0]->collection());
+        $this->assertFalse($actual[0]->paginate());
     }
 
     public static function sessionTokensProvider(): array

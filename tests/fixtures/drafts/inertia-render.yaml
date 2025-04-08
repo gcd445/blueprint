@@ -1,0 +1,5 @@
+controllers:
+  Customer:
+    show:
+      query: all
+      inertia: Customer/Show with:customer,customers

@@ -2,11 +2,13 @@
 
 namespace Blueprint\Models\Statements;
 
+use Blueprint\Concerns\HasParameters;
+
 class RenderStatement
 {
-    private string $view;
+    use HasParameters;
 
-    private array $data;
+    private string $view;
 
     public function __construct(string $view, array $data = [])
     {
@@ -14,22 +16,12 @@ class RenderStatement
         $this->data = $data;
     }
 
-    public function view(): string
-    {
-        return $this->view;
-    }
-
-    public function data(): array
-    {
-        return $this->data;
-    }
-
     public function output(): string
     {
         $code = "return view('" . $this->view() . "'";
 
         if ($this->data()) {
-            $code .= ', compact(' . $this->buildParameters($this->data()) . ')';
+            $code .= ', ' . $this->buildParameters();
         }
 
         $code .= ');';
@@ -37,10 +29,30 @@ class RenderStatement
         return $code;
     }
 
-    private function buildParameters(array $data): string
+    public function view(): string
     {
-        $parameters = array_map(fn ($parameter) => "'" . $parameter . "'", $data);
+        return $this->view;
+    }
 
-        return implode(', ', $parameters);
+    private function buildParameters(): string
+    {
+        $parameters = array_map(
+            fn ($parameter) => sprintf(
+                "%s'%s' => \$%s%s,%s",
+                str_pad(' ', 12),
+                $parameter,
+                in_array($parameter, $this->properties()) ? 'this->' : '',
+                $parameter,
+                PHP_EOL
+            ),
+            $this->data()
+        );
+
+        return sprintf(
+            '[%s%s%s]',
+            PHP_EOL,
+            implode($parameters),
+            str_pad(' ', 8)
+        );
     }
 }

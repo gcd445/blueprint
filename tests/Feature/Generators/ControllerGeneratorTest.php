@@ -26,9 +26,9 @@ final class ControllerGeneratorTest extends TestCase
 
         $this->subject = new ControllerGenerator($this->filesystem);
 
-        $this->blueprint = new Blueprint();
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer());
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer()));
+        $this->blueprint = new Blueprint;
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer);
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer));
         $this->blueprint->registerGenerator($this->subject);
     }
 
@@ -130,6 +130,7 @@ final class ControllerGeneratorTest extends TestCase
     {
         $this->app['config']->set('blueprint.app_path', 'src/path');
         $this->app['config']->set('blueprint.namespace', 'Some\\App');
+        $this->app['config']->set('blueprint.models_namespace', '');
         $this->app['config']->set('blueprint.controllers_namespace', 'Other\\Http');
 
         $this->filesystem->expects('stub')
@@ -231,6 +232,33 @@ final class ControllerGeneratorTest extends TestCase
         $this->assertEquals(['created' => [$path]], $this->subject->output($tree));
     }
 
+    #[Test]
+    public function output_generates_controller_without_generating_resource_collection_classes(): void
+    {
+        config(['blueprint.generate_resource_collection_classes' => false]);
+
+        $definition = 'drafts/api-resource-pagination.yaml';
+        $path = 'app/Http/Controllers/PostController.php';
+        $controller = 'controllers/without-generating-resource-collection-classes.php';
+
+        $this->filesystem->expects('stub')
+            ->with('controller.class.stub')
+            ->andReturn($this->stub('controller.class.stub'));
+        $this->filesystem->expects('stub')
+            ->with('controller.method.stub')
+            ->andReturn($this->stub('controller.method.stub'));
+
+        $this->filesystem->expects('exists')
+            ->with(dirname($path))
+            ->andReturnTrue();
+        $this->filesystem->expects('put')
+            ->with($path, $this->fixture($controller));
+
+        $tokens = $this->blueprint->parse($this->fixture($definition));
+        $tree = $this->blueprint->analyze($tokens);
+        $this->assertEquals(['created' => [$path]], $this->subject->output($tree));
+    }
+
     public static function controllerTreeDataProvider(): array
     {
         return [
@@ -238,11 +266,14 @@ final class ControllerGeneratorTest extends TestCase
             ['drafts/readme-example-notification-facade.yaml', 'app/Http/Controllers/PostController.php', 'controllers/readme-example-notification-facade.php'],
             ['drafts/readme-example-notification-model.yaml', 'app/Http/Controllers/PostController.php', 'controllers/readme-example-notification-model.php'],
             ['drafts/crazy-eloquent.yaml', 'app/Http/Controllers/PostController.php', 'controllers/crazy-eloquent.php'],
+            ['drafts/longhand-controller-name.yaml', 'app/Http/Controllers/UserController.php', 'controllers/longhand-controller-name.php'],
             ['drafts/nested-components.yaml', 'app/Http/Controllers/Admin/UserController.php', 'controllers/nested-components.php'],
             ['drafts/respond-statements.yaml', 'app/Http/Controllers/Api/PostController.php', 'controllers/respond-statements.php'],
             ['drafts/resource-statements.yaml', 'app/Http/Controllers/UserController.php', 'controllers/resource-statements.php'],
+            ['drafts/inertia-render.yaml', 'app/Http/Controllers/CustomerController.php', 'controllers/inertia-render.php'],
             ['drafts/save-without-validation.yaml', 'app/Http/Controllers/PostController.php', 'controllers/save-without-validation.php'],
             ['drafts/api-resource-pagination.yaml', 'app/Http/Controllers/PostController.php', 'controllers/api-resource-pagination.php'],
+            ['drafts/api-resource-nested.yaml', 'app/Http/Controllers/CommentController.php', 'controllers/api-resource-nested.php'],
             ['drafts/api-routes-example.yaml', 'app/Http/Controllers/Api/CertificateController.php', 'controllers/api-routes-example.php'],
             ['drafts/invokable-controller.yaml', 'app/Http/Controllers/ReportController.php', 'controllers/invokable-controller.php'],
             ['drafts/invokable-controller-shorthand.yaml', 'app/Http/Controllers/ReportController.php', 'controllers/invokable-controller-shorthand.php'],

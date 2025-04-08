@@ -115,6 +115,11 @@ class PestTestGenerator extends AbstractClassGenerator implements Generator
                 $setup['data'][] = sprintf('$%s = %s::factory()->create();', $variable, $model);
             }
 
+            if ($parent = $controller->parent()) {
+                $this->addImport($controller, $modelNamespace . '\\' . $parent);
+                $setup['data'][] = sprintf('$%s = %s::factory()->create();', Str::camel($parent), $parent);
+            }
+
             foreach ($statements as $statement) {
                 if ($statement instanceof SendStatement) {
                     if ($statement->isNotification()) {
@@ -203,6 +208,8 @@ class PestTestGenerator extends AbstractClassGenerator implements Generator
                 } elseif ($statement instanceof ValidateStatement) {
                     $class = $this->buildFormRequestName($controller, $name);
                     $test_case = $this->buildFormRequestTestCase($controller->fullyQualifiedClassName(), $name, config('blueprint.namespace') . '\\Http\\Requests\\' . $class) . PHP_EOL . PHP_EOL . $test_case;
+
+                    $this->importAdditionalAssertionsToBaseTest();
 
                     if ($statement->data()) {
                         foreach ($statement->data() as $data) {
@@ -493,6 +500,22 @@ class PestTestGenerator extends AbstractClassGenerator implements Generator
             }
             $call .= ')';
 
+            if ($controller->parent()) {
+                $parent = Str::camel($controller->parent());
+                $variable = Str::camel($context);
+                $binding = sprintf(', $%s)', $variable);
+                $params = sprintf("'%s' => $%s", $parent, $parent);
+
+                if (Str::contains($call, $binding)) {
+                    $params .= sprintf(", '%s' => $%s", $variable, $variable);
+                    $search = $binding;
+                } else {
+                    $search = ')';
+                }
+
+                $call = str_replace($search, sprintf(', [%s])', $params), $call);
+            }
+
             if ($request_data) {
                 $call .= ', [';
                 $call .= PHP_EOL;
@@ -652,5 +675,37 @@ END;
     private function buildLines($lines): string
     {
         return str_pad(' ', 4) . implode(PHP_EOL . str_pad(' ', 4), $lines);
+    }
+
+    private function importAdditionalAssertionsToBaseTest(): void
+    {
+        $path = 'tests/TestCase.php';
+        $fullPath = base_path($path);
+
+        if (!$this->filesystem->exists($fullPath)) {
+            return;
+        }
+
+        $content = $this->filesystem->get($fullPath);
+
+        if (Str::contains($content, 'use JMac\\Testing\\Traits\\AdditionalAssertions;')) {
+            return;
+        }
+
+        $updatedContent = preg_replace(
+            [
+                '/as BaseTestCase;/',
+                '/abstract class TestCase extends BaseTestCase\s*{/',
+            ],
+            [
+                'as BaseTestCase;' . PHP_EOL . 'use JMac\\Testing\\Traits\\AdditionalAssertions;',
+                'abstract class TestCase extends BaseTestCase' . PHP_EOL . '{' . PHP_EOL . '    use AdditionalAssertions;',
+            ],
+            $content
+        );
+
+        $this->output['updated'][] = $path;
+
+        $this->filesystem->put($fullPath, $updatedContent);
     }
 }

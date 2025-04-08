@@ -26,9 +26,9 @@ final class PhpUnitTestGeneratorTest extends TestCase
 
         $this->subject = new PhpUnitTestGenerator($this->filesystem);
 
-        $this->blueprint = new Blueprint();
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer());
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer()));
+        $this->blueprint = new Blueprint;
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer);
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer));
         $this->blueprint->registerGenerator($this->subject);
     }
 
@@ -226,6 +226,7 @@ final class PhpUnitTestGeneratorTest extends TestCase
             ['drafts/controllers-only-no-context.yaml', 'tests/Feature/Http/Controllers/ReportControllerTest.php', 'tests/phpunit/controllers-only-no-context.php'],
             ['drafts/date-formats.yaml', 'tests/Feature/Http/Controllers/DateControllerTest.php', 'tests/phpunit/date-formats.php'],
             ['drafts/test-relationships.yaml', 'tests/Feature/Http/Controllers/ConferenceControllerTest.php', 'tests/phpunit/test-relationships.php'],
+            ['drafts/api-resource-nested.yaml', 'tests/Feature/Http/Controllers/CommentControllerTest.php', 'tests/phpunit/api-resource-nested.php'],
             ['drafts/call-to-a-member-function-columns-on-null.yaml', [
                 'tests/Feature/Http/Controllers/SubscriptionControllerTest.php',
                 'tests/Feature/Http/Controllers/TelegramControllerTest.php',

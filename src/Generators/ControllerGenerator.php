@@ -10,6 +10,7 @@ use Blueprint\Models\Policy;
 use Blueprint\Models\Statements\DispatchStatement;
 use Blueprint\Models\Statements\EloquentStatement;
 use Blueprint\Models\Statements\FireStatement;
+use Blueprint\Models\Statements\InertiaStatement;
 use Blueprint\Models\Statements\QueryStatement;
 use Blueprint\Models\Statements\RedirectStatement;
 use Blueprint\Models\Statements\RenderStatement;
@@ -81,14 +82,19 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
 
         foreach ($controller->methods() as $name => $statements) {
             $method = str_replace('{{ method }}', $name, $template);
+            $search = '(Request $request';
 
             if (in_array($name, ['edit', 'update', 'show', 'destroy'])) {
                 $reference = $this->fullyQualifyModelReference($controller->namespace(), $controllerModelName);
                 $variable = '$' . Str::camel($controllerModelName);
 
-                $search = '(Request $request';
                 $method = str_replace($search, $search . ', ' . $controllerModelName . ' ' . $variable, $method);
                 $this->addImport($controller, $reference);
+            }
+
+            if ($parent = $controller->parent()) {
+                $method = str_replace($search, $search . ', ' . $parent . ' $' . Str::camel($parent), $method);
+                $this->addImport($controller, $this->fullyQualifyModelReference($controller->namespace(), $parent));
             }
 
             $body = '';
@@ -108,9 +114,10 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                             '$' . Str::camel($controllerModelName),
                         ],
                         in_array($name, ['index', 'create', 'store'])
-                            ? "\$this->authorize('{{ method }}', {{ modelClass }}::class);"
-                            : "\$this->authorize('{{ method }}', {{ modelVariable }});"
+                            ? "Gate::authorize('{{ method }}', {{ modelClass }}::class);"
+                            : "Gate::authorize('{{ method }}', {{ modelVariable }});"
                     ) . PHP_EOL . PHP_EOL;
+                    $this->addImport($controller, 'Illuminate\Support\Facades\Gate');
                 }
             }
 
@@ -126,7 +133,7 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                     }
                 } elseif ($statement instanceof ValidateStatement) {
                     $using_validation = true;
-                    $class_name = $controller->name() . Str::studly($name) . 'Request';
+                    $class_name = Str::singular($controller->prefix()) . Str::studly($name) . 'Request';
 
                     $fqcn = config('blueprint.namespace') . '\\Http\\Requests\\' . ($controller->namespace() ? $controller->namespace() . '\\' : '') . $class_name;
 
@@ -206,7 +213,7 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
 
                     // dump([
                     //     '$model->name()' => $model->name(),
-                    //     '$model->usesSoftDeletes()' => $model->usesSoftDeletes() 
+                    //     '$model->usesSoftDeletes()' => $model->usesSoftDeletes()
                     // ]);
                     // dump([
                     //     '$allowed_includes' => $allowed_includes,
@@ -233,6 +240,20 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                     if ($has_filters) {
                         $this->addImport($controller, "Spatie\QueryBuilder\AllowedFilter");
                     }
+                } elseif ($statement instanceof InertiaStatement) {
+                    $body .= self::INDENT . $statement->output() . PHP_EOL;
+                    $this->addImport($controller, 'Inertia\Inertia');
+                }
+
+                if (
+                    $controller->parent() &&
+                    ($statement instanceof QueryStatement || $statement instanceof EloquentStatement || $statement instanceof ResourceStatement)
+                ) {
+                    $body = str_replace(
+                        ['::all', Str::singular($controller->prefix()) . '::'],
+                        ['::get', '$' . Str::lower($controller->parent()) . '->' . Str::plural(Str::lower($controller->prefix())) . '()->'],
+                        $body
+                    );
                 }
 
                 $body .= PHP_EOL;
@@ -246,9 +267,10 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
                 $method = str_replace('): Response' . PHP_EOL, ')' . PHP_EOL, $method);
             } else {
                 $returnType = match (true) {
+                    $statement instanceof InertiaStatement => 'Inertia\Response',
                     $statement instanceof RenderStatement => 'Illuminate\View\View',
                     $statement instanceof RedirectStatement => 'Illuminate\Http\RedirectResponse',
-                    $statement instanceof ResourceStatement => config('blueprint.namespace') . '\\Http\\Resources\\' . ($controller->namespace() ? $controller->namespace() . '\\' : '') . $statement->name(),
+                    $statement instanceof ResourceStatement => $statement->collection() && !$statement->generateCollectionClass() ? 'Illuminate\Http\Resources\Json\ResourceCollection' : config('blueprint.namespace') . '\\Http\\Resources\\' . ($controller->namespace() ? $controller->namespace() . '\\' : '') . $statement->name(),
                     default => 'Illuminate\Http\Response'
                 };
 
@@ -275,7 +297,13 @@ class ControllerGenerator extends AbstractClassGenerator implements Generator
             return $model->fullyQualifiedClassName();
         }
 
-        return config('blueprint.namespace') . '\\' . ($sub_namespace ? $sub_namespace . '\\' : '') . $model_name;
+        return sprintf(
+            '%s\\%s%s%s',
+            config('blueprint.namespace'),
+            config('blueprint.models_namespace') ? config('blueprint.models_namespace') . '\\' : '',
+            $sub_namespace ? $sub_namespace . '\\' : '',
+            $model_name
+        );
     }
 
     private function determineModel(Controller $controller, ?string $reference): string

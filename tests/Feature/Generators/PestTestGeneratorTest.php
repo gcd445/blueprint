@@ -26,9 +26,9 @@ final class PestTestGeneratorTest extends TestCase
 
         $this->subject = new PestTestGenerator($this->filesystem);
 
-        $this->blueprint = new Blueprint();
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer());
-        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer()));
+        $this->blueprint = new Blueprint;
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ModelLexer);
+        $this->blueprint->registerLexer(new \Blueprint\Lexers\ControllerLexer(new StatementLexer));
         $this->blueprint->registerGenerator($this->subject);
     }
 
@@ -213,6 +213,55 @@ final class PestTestGeneratorTest extends TestCase
         $this->assertEquals(['created' => [$path]], $this->subject->output($tree));
     }
 
+    #[Test]
+    public function output_imports_additional_assertions_to_base_test(): void
+    {
+        $definition = 'drafts/api-resource-nested.yaml';
+        $path = 'tests/Feature/Http/Controllers/CommentControllerTest.php';
+        $test = 'tests/pest/api-resource-nested.php';
+        $testCasePath = base_path('tests/TestCase.php');
+
+        $this->filesystem->expects('stub')
+            ->with('pest.test.class.stub')
+            ->andReturn($this->stub('pest.test.class.stub'));
+
+        $this->filesystem->expects('stub')
+            ->with('pest.test.case.stub')
+            ->andReturn($this->stub('pest.test.case.stub'));
+
+        $dirname = dirname($path);
+        $this->filesystem->expects('exists')
+            ->with($dirname)
+            ->andReturnFalse();
+
+        $this->filesystem->expects('makeDirectory')
+            ->with($dirname, 0755, true);
+
+        $this->filesystem->expects('put')
+            ->with($path, $this->fixture($test));
+
+        $this->filesystem->expects('exists')
+            ->with($testCasePath)
+            ->twice()
+            ->andReturnTrue();
+
+        $this->filesystem->expects('get')
+            ->twice()
+            ->with($testCasePath)
+            ->andReturn(
+                $this->fixture('tests/pest/test-case.php'),
+                $this->fixture('tests/pest/test-case-with-additional-assertions.php'),
+            );
+
+        $this->filesystem->expects('put')
+            ->with($testCasePath, $this->fixture('tests/pest/test-case-with-additional-assertions.php'));
+
+        $tokens = $this->blueprint->parse($this->fixture($definition));
+        $tree = $this->blueprint->analyze($tokens);
+
+        $this->assertEquals(['created' => [$path], 'updated' => ['tests/TestCase.php']], $this->subject->output($tree));
+    }
+
     public static function controllerTreeDataProvider(): array
     {
         return [
@@ -225,6 +274,7 @@ final class PestTestGeneratorTest extends TestCase
             ['drafts/model-reference-validate.yaml', 'tests/Feature/Http/Controllers/CertificateControllerTest.php', 'tests/pest/api-shorthand-validation.php'],
             ['drafts/controllers-only-no-context.yaml', 'tests/Feature/Http/Controllers/ReportControllerTest.php', 'tests/pest/controllers-only-no-context.php'],
             ['drafts/date-formats.yaml', 'tests/Feature/Http/Controllers/DateControllerTest.php', 'tests/pest/date-formats.php'],
+            ['drafts/api-resource-nested.yaml', 'tests/Feature/Http/Controllers/CommentControllerTest.php', 'tests/pest/api-resource-nested.php'],
             ['drafts/call-to-a-member-function-columns-on-null.yaml', [
                 'tests/Feature/Http/Controllers/SubscriptionControllerTest.php',
                 'tests/Feature/Http/Controllers/TelegramControllerTest.php',

@@ -60,11 +60,11 @@ class ResourceGenerator extends StatementGenerator implements Generator
             . ($controller->namespace() ? '\\' . $controller->namespace() : '');
 
         $imports = ['use Illuminate\\Http\\Request;'];
-        $imports[] = $resource->collection() ? 'use Illuminate\\Http\\Resources\\Json\\ResourceCollection;' : 'use Illuminate\\Http\\Resources\\Json\\JsonResource;';
+        $imports[] = $resource->collection() && $resource->generateCollectionClass() ? 'use Illuminate\\Http\\Resources\\Json\\ResourceCollection;' : 'use Illuminate\\Http\\Resources\\Json\\JsonResource;';
 
         $stub = str_replace('{{ namespace }}', $namespace, $stub);
         $stub = str_replace('{{ imports }}', implode(PHP_EOL, $imports), $stub);
-        $stub = str_replace('{{ parentClass }}', $resource->collection() ? 'ResourceCollection' : 'JsonResource', $stub);
+        $stub = str_replace('{{ parentClass }}', $resource->collection() && $resource->generateCollectionClass() ? 'ResourceCollection' : 'JsonResource', $stub);
         $stub = str_replace('{{ class }}', $resource->name(), $stub);
         $stub = str_replace('{{ parentClass }}', $resource->collection() ? 'ResourceCollection' : 'JsonResource', $stub);
         $stub = str_replace('{{ collectionWrap }}', $resource->collection() ? 'public static $wrap = null;' : '', $stub); // TODO: make this configurable in config to be "data",plural model name,or null
@@ -120,9 +120,9 @@ class ResourceGenerator extends StatementGenerator implements Generator
             }
         }
         // 'created_at' => $this->whenNotNull($this->created_at),
-        
+
         $data[] = self::INDENT . '\'' . 'updated_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'updated_at' . ')' : '$this->' . 'updated_at') . ',';
-        $data[] = self::INDENT . '\'' . 'created_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'created_at' . ')' : '$this->' . 'created_at') . ',';        
+        $data[] = self::INDENT . '\'' . 'created_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'created_at' . ')' : '$this->' . 'created_at') . ',';
         if ($model->usesSoftDeletes()) {
             $data[] = self::INDENT . '\'' . 'deleted_at' . '\' => ' . (config('blueprint.when_not_null') ? '$this->whenNotNull($this->' . 'deleted_at' . ')' : '$this->' . 'deleted_at') . ',';
         }
