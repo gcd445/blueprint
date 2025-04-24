@@ -24,6 +24,10 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
         $stub = $this->filesystem->stub('resource.stub');
 
+        $yesToAll = false; // Flag to track "yes to all"
+        $noToAll = false; // Flag to track "no to all"
+
+
         /**
          * @var \Blueprint\Models\Controller $controller
          */
@@ -36,11 +40,53 @@ class ResourceGenerator extends StatementGenerator implements Generator
 
                     $path = $this->getStatementPath(($controller->namespace() ? $controller->namespace() . '/' : '') . $statement->name());
 
+                    // If the file exists, prompt the user unless "yes to all" or "no to all" is already set
                     if ($this->filesystem->exists($path)) {
-                        continue;
-                    }
+                        if ($yesToAll) {
+                            // Overwrite all files
+                            $this->create($path, $this->populateStub($stub, $controller, $statement));
+                            continue; // Skip to the next iteration of the outer loop
+                        }
 
-                    $this->create($path, $this->populateStub($stub, $controller, $statement));
+                        if ($noToAll) {
+                            // Skip all files
+                            continue; // Skip to the next iteration of the outer loop
+                        }
+
+                        // Ask the user for input
+                        echo "The file at '$path' already exists. Overwrite? (y = yes, n = no, a = all, na = not all): ";
+                        $input = strtolower(trim(readline()));
+
+                        switch ($input) {
+                            case 'y': // Overwrite this file
+                                echo "Overwriting '$path'...\n";
+                                $this->create($path, $this->populateStub($stub, $controller, $statement));
+                                break; // Exit the switch block
+                            case 'n': // Skip this file
+                                echo "Skipping '$path'...\n";
+                                continue 2; // Skip to the next iteration of the outer loop
+                            case 'a': // Overwrite all files from now on
+                                echo "Overwriting all files from now on...\n";
+                                $yesToAll = true;
+                                $this->create($path, $this->populateStub($stub, $controller, $statement));
+                                break; // Exit the switch block
+                            case 'na': // Skip all files from now on
+                                echo "Skipping all files from now on...\n";
+                                $noToAll = true;
+                                continue 2; // Skip to the next iteration of the outer loop
+                            default: // Invalid input
+                                echo "Invalid input. Skipping '$path'...\n";
+                                continue 2; // Skip to the next iteration of the outer loop
+                        }
+                    } else {
+                        // Create a new file if it doesn't exist
+                        $this->create($path, $this->populateStub($stub, $controller, $statement));
+                    }
+                    // if ($this->filesystem->exists($path)) {
+                    //     continue;
+                    // }
+
+                    // $this->create($path, $this->populateStub($stub, $controller, $statement));
                 }
             }
         }
